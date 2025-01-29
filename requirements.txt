@@ -1,3 +1,4 @@
 pip install rich
 pip install scrapy
 pip install pypdf
+pip install requests
