@@ -1,16 +1,29 @@
+import os
+import platform
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
 from bs4 import BeautifulSoup
 import time
 import re
 
-# Set up WebDriver for Firefox (Ensure Geckodriver is installed)
-service = Service("/usr/bin/geckodriver")
-driver = webdriver.Firefox(service=service)
+# Automatically detect OS and set up WebDriver
+if platform.system() == "Linux":  # Running on Kali Linux
+    print("Running on Kali Linux - Using Firefox")
+    webdriver_service = FirefoxService(GeckoDriverManager().install())  # Auto-download latest Geckodriver
+    driver = webdriver.Firefox(service=webdriver_service)
+elif platform.system() == "Windows":  # Running on Windows
+    print("Running on Windows - Using Chrome")
+    webdriver_service = ChromeService(ChromeDriverManager().install())  # Auto-download latest Chromedriver
+    driver = webdriver.Chrome(service=webdriver_service)
+else:
+    raise Exception("Unsupported OS. This script supports only Kali Linux (Firefox) and Windows (Chrome).")
 
-# Facebook Login Credentials (Replace with your actual credentials)
+# Facebook Login Credentials (Replace with actual credentials)
 USERNAME = "email"
 PASSWORD = "password"
 
@@ -40,7 +53,7 @@ def login_facebook():
     print("Logged into Facebook successfully!")
     return True
 
-# Function to extract all text from a profile page
+# Function to scrape all text from a profile page
 def scrape_profile_text(profile_url):
     """Scrapes all visible text from a Facebook profile page."""
     driver.get(profile_url)
