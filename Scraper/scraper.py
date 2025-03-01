@@ -111,60 +111,52 @@ def scrape_instagram_profile(profile_url):
             EC.presence_of_element_located((By.TAG_NAME, "h2"))
         )
 
-        try:
-            profile_name = driver.find_element(By.TAG_NAME, "h2").text.strip()
-        except:
-            profile_name = "N/A"
+        profile_name = driver.find_element(By.TAG_NAME, "h2").text.strip()
+        bio_section = driver.find_element(By.XPATH, "//div[contains(@class, '_aa_c')]").text.strip()
+        followers = driver.find_element(By.XPATH, "//li[contains(@class, '_ac2a')]").text.strip()
+        following = driver.find_element(By.XPATH, "//li[contains(@class, '_ac2a')]").text.strip()
 
-        try:
-            bio_section = driver.find_element(By.XPATH, "//div[contains(@class, '_aa_c')]")
-            bio = bio_section.text.strip()
-        except:
-            bio = "No bio available"
-
-        try:
-            stats = driver.find_elements(By.XPATH, "//li[contains(@class, '_ac2a')]")
-            followers = stats[0].text if len(stats) > 0 else "N/A"
-            following = stats[1].text if len(stats) > 1 else "N/A"
-        except:
-            followers = "N/A"
-            following = "N/A"
-
-        profile_info = f"{profile_name}\n{bio}\n{followers} Followers\n{following} Following"
+        profile_info = f"{profile_name}\n{bio_section}\n{followers} Followers\n{following} Following"
         return format_scraped_text(profile_info)
 
     except Exception as e:
         print(f"Error scraping Instagram: {e}")
         return []
 
+# Function to scrape general websites (blogs, news, static pages)
+def scrape_general_website(url):
+    """Scrapes text content from a general website page, including small text like author names."""
+    print(f"Navigating to {url}...")
+    driver.get(url)
+    time.sleep(5)  # Allow page to load
+
+    try:
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+        # Extract headlines
+        headings = [h.text.strip() for h in soup.find_all(['h1', 'h2', 'h3'])]
+
+        # Extract paragraph text
+        paragraphs = [p.text.strip() for p in soup.find_all('p')]
+
+        # Extract small text (author names, post credits, etc.)
+        small_texts = [s.text.strip() for s in soup.find_all(['small', 'span', 'footer'])]
+
+        # Merge extracted content
+        page_text = "\n".join(headings + paragraphs + small_texts)
+
+        print("Website content scraped successfully!")
+        return format_scraped_text(page_text)
+
+    except Exception as e:
+        print(f"Error scraping website: {e}")
+        return []
+
+
 # Function to format scraped text
 def format_scraped_text(text):
     """Formats scraped text to extract meaningful words, names, dates, and numbers."""
-    words = []
-
-    name_pattern = r"\b([A-Z][a-z]+)\s([A-Z][a-z]+)(?:\s([A-Z][a-z]+))?\b"
-    matches = re.findall(name_pattern, text)
-    for match in matches:
-        name_parts = [part for part in match if part]
-        full_name = "".join(name_parts)
-        words.extend(name_parts)
-        words.append(full_name)
-
-    date_patterns = [
-        r"\b(\d{1,2})\s(January|February|March|April|May|June|July|August|September|October|November|December)\b",
-        r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{1,2})\b",
-        r"\b(\d{1,2})\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})\b",
-    ]
-
-    for pattern in date_patterns:
-        matches = re.findall(pattern, text)
-        for match in matches:
-            formatted_date = "".join(match)
-            words.append(formatted_date)
-
-    general_words = re.findall(r'\b[A-Za-z0-9]+\b', text)
-    words.extend(general_words)
-
+    words = re.findall(r'\b[A-Za-z0-9]+\b', text)
     return sorted(set(words))
 
 # Function to save extracted words to a text file
@@ -175,19 +167,22 @@ def save_wordlist(words, filename="wordlist.txt"):
             file.write(word + "\n")
     print(f"Wordlist saved to {filename}")
 
-# Main Execution Block
 if __name__ == "__main__":
     try:
-        choice = input("Choose platform to scrape (facebook/instagram): ").strip().lower()
+        choice = input("Choose platform to scrape (facebook/instagram/website): ").strip().lower()
+        profile_url = input("Enter the URL to scrape: ").strip()
 
         if choice == "facebook":
             if login_facebook():
-                profile_url = input("Enter the Facebook Profile URL: ")
                 words = scrape_facebook_profile(profile_url)
         elif choice == "instagram":
             if login_instagram():
-                profile_url = input("Enter the Instagram Profile URL: ")
                 words = scrape_instagram_profile(profile_url)
+        elif choice == "website":
+            words = scrape_general_website(profile_url)
+        else:
+            print("Invalid choice. Please restart the script and choose a valid option.")
+            exit()
 
         save_wordlist(words)
 
