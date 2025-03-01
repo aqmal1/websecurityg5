@@ -88,15 +88,46 @@ def login_instagram():
     return True
 
 # Function to scrape Facebook profile data
-def scrape_facebook_profile(profile_url):
-    """Scrapes all visible text from a Facebook profile page."""
-    driver.get(profile_url)
+def scrape_facebook_profile(base_url, max_pages=20):
+    """Scrapes a Facebook profile and navigates to related pages like posts and friends."""
+    print(f"Navigating to {base_url}...")
+    driver.get(base_url)
     time.sleep(5)
 
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
-    all_text = soup.get_text(separator="\n", strip=True)
+    visited_urls = set()  # Store visited URLs to avoid duplicates
+    pages_to_visit = [base_url]  # Start with the base profile URL
+    scraped_words = []  # Store extracted words
 
-    return format_scraped_text(all_text)
+    try:
+        while pages_to_visit and len(visited_urls) < max_pages:
+            current_url = pages_to_visit.pop(0)  # Get next URL to visit
+            if current_url in visited_urls:
+                continue  # Skip if already visited
+
+            print(f"Scraping: {current_url}")
+            driver.get(current_url)
+            time.sleep(5)
+            visited_urls.add(current_url)
+
+            # Extract all visible text
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            page_text = soup.get_text(separator="\n", strip=True)
+            scraped_words.extend(format_scraped_text(page_text))
+
+            # Extract and follow additional links (posts, friends, etc.)
+            for link in soup.find_all("a", href=True):
+                href = link["href"]
+                if "facebook.com" in href and href not in visited_urls:
+                    full_url = href if href.startswith("http") else "https://www.facebook.com" + href
+                    pages_to_visit.append(full_url)
+
+            print(f"Page scraped successfully! Total pages visited: {len(visited_urls)}")
+
+    except Exception as e:
+        print(f"Error scraping Facebook: {e}")
+
+    return scraped_words
+
 
 # Function to scrape Instagram profile data
 def scrape_instagram_profile(profile_url):
@@ -155,9 +186,38 @@ def scrape_general_website(url):
 
 # Function to format scraped text
 def format_scraped_text(text):
-    """Formats scraped text to extract meaningful words, names, dates, and numbers."""
-    words = re.findall(r'\b[A-Za-z0-9]+\b', text)
-    return sorted(set(words))
+    """Formats scraped text to extract and concatenate meaningful words, names, dates, and numbers."""
+    words = []
+
+    # **Extract and format dates**
+    date_patterns = [
+        r"\b(\d{1,2})\s(January|February|March|April|May|June|July|August|September|October|November|December)\b",  # 2 May → 2May
+        r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{1,2})\b",  # April 04 → April04
+        r"\b(\d{1,2})\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})\b",  # 21 Jan 1996 → 21Jan1996
+        r"\b(\d{4})\s(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{1,2})\b",  # 1996 Dec 19 → 1996Dec19
+    ]
+
+    for pattern in date_patterns:
+        matches = re.findall(pattern, text)
+        for match in matches:
+            formatted_date = "".join(match)  # Join without spaces
+            words.append(formatted_date)
+
+    # **Extract and format phone numbers**
+    phone_patterns = [r"\b(\d{4})\s(\d{4})\b"]  # Matches "1234 5678"
+    for pattern in phone_patterns:
+        matches = re.findall(pattern, text)
+        for match in matches:
+            part1, part2 = match
+            full_number = part1 + part2  # Join without spaces
+            words.extend([part1, part2, full_number])
+
+    # **Extract general words (alphanumeric only)**
+    general_words = re.findall(r'\b[A-Za-z0-9]+\b', text)
+    words.extend(general_words)
+
+    return sorted(set(words))  # Remove duplicates and sort
+
 
 # Function to save extracted words to a text file
 def save_wordlist(words, filename="wordlist.txt"):
