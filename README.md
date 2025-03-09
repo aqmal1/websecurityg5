@@ -6,10 +6,15 @@ venv\scripts\Activate
 pip install -r requirements.txt
 python start.py
 
-------------------------------------------------------------------------------------------------------------
+
 Note: If polymorph.py takes too long, you can just cancel it early by pressing Ctrl + C
 Then you can run the brute force tool separately
-------------------------------------------------------------------------------------------------------------
+
 python brute_csrf.py <URL> <Wordlist>
 Example:
 python brute_csrf.py https://aqmalzulkifli.pythonanywhere.com/ generatedpass.txt
+
+--------------------------------------------------------
+SCRAPING FACEBOOK AND INSTAGRAM PROFILES
+--------------------------------------------------------
+Edit the .env files and type in your credentials if you want to do so
