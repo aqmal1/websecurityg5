@@ -1,0 +1,13 @@
+aiohttp
+asyncio
+beautifulsoup4
+bs4
+fake_useragent
+python-dotenv
+requests
+selenium
+torch
+torchvision
+torchaudio
+tqdm
+webdriver-manager
