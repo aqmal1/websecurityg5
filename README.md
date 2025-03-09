@@ -1,7 +1,15 @@
-Original repo: https://github.com/roys/cewler
+------------------------------------------------------
+HOW TO USE:
+------------------------------------------------------
+python -m venv venv
+venv\scripts\Activate
+pip install -r requirements.txt
+python start.py
 
-How to use:
-py cewler.py --output wordlist.txt <WEBSITE NAME>
-
+------------------------------------------------------------------------------------------------------------
+Note: If polymorph.py takes too long, you can just cancel it early by pressing Ctrl + C
+Then you can run the brute force tool separately
+------------------------------------------------------------------------------------------------------------
+python brute_csrf.py <URL> <Wordlist>
 Example:
-py cewler.py --output wordlist.txt https://www.geeksforgeeks.org/
+python brute_csrf.py https://aqmalzulkifli.pythonanywhere.com/ generatedpass.txt
